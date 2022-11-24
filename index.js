@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion } = require('mongodb');
+require('dotenv').config();
 const port = process.env.PORT || 5000;
+
 
 const app = express();
 
@@ -19,7 +21,13 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 
 const run = async() => {
     try{
-        
+        const usersCollection = client.db('iconnect').collection('users');
+
+        app.post('/users', async(req, res) => {
+            const user = req.body;
+            const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
 
 
 
