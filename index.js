@@ -23,6 +23,7 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 const run = async() => {
     try{
         const usersCollection = client.db('iconnect').collection('users');
+        const catagoriesCollection = client.db('iconnect').collection('catagories');
 
         app.get('/jwt', async(req, res) => {
             const email = req.query.email;
@@ -36,6 +37,11 @@ const run = async() => {
                 return res.send({accessToken: token});
             };
             res.send({accessToken: ''});
+        });
+
+        app.get('/catagories', async(req, res) => {
+            const catagories = await catagoriesCollection.find({}).toArray();
+            res.send(catagories);
         });
 
         app.post('/users', async(req, res) => {
