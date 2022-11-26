@@ -98,6 +98,22 @@ const run = async() => {
             }
             res.send([]);
         });
+        
+        app.get('/sellers', varifyJwt, async(req, res) => {
+            const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+            
+            if(email !== decodedEmail){
+                return res.send([{message: 'forbidden access'}])
+            }
+            const admin = await usersCollection.findOne({email: email});
+            if(admin.accountType === "admin"){
+                const query = {accountType: 'seller'};
+                const buyers = await usersCollection.find(query).toArray();
+                return res.send(buyers);
+            }
+            res.send([]);
+        });
 
         app.post('/users', async(req, res) => {
             const user = req.body;
