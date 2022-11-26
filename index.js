@@ -24,13 +24,13 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 const varifyJwt = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if(!authHeader){
-        return res.status(403).send('unauthorized')
+        return res.send('unauthorized')
     };
     const token = authHeader.split(' ')[1];
 
     jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
         if(err){
-            return res.status(403).send({message: 'forbidden access'});
+            return res.send([{message: 'forbidden access'}]);
         };
         req.decoded = decoded;
         next();
@@ -63,7 +63,7 @@ const run = async() => {
             const decodedEmail = req.decoded.email;
             
             if(email !== decodedEmail){
-                return res.status(403).send({message: 'forbidden access'})
+                return res.send([{message: 'forbidden access'}])
             }
 
             const query = {email: email};
@@ -83,6 +83,22 @@ const run = async() => {
             res.send(products);
         });
 
+        app.get('/buyers', varifyJwt, async(req, res) => {
+            const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+            
+            if(email !== decodedEmail){
+                return res.send([{message: 'forbidden access'}])
+            }
+            const admin = await usersCollection.findOne({email: email});
+            if(admin.accountType === "admin"){
+                const query = {accountType: 'buyer'};
+                const buyers = await usersCollection.find(query).toArray();
+                return res.send(buyers);
+            }
+            res.send([]);
+        });
+
         app.post('/users', async(req, res) => {
             const user = req.body;
 
@@ -95,6 +111,13 @@ const run = async() => {
             };
 
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
+
+        app.delete('/user', async(req, res) => {
+            const email = req.query.email;
+            const query = {email: email};
+            const result = await usersCollection.deleteOne(query);
             res.send(result);
         });
 
