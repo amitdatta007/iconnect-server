@@ -150,6 +150,21 @@ const run = async() => {
             res.send(result);
         });
 
+        app.put('/user', async(req, res) => {
+            const user = req.body;
+            const email = user.email;
+            const filter = {email: email};
+            const option = {upsert: true};
+            const updatedUser = {
+                $set: {
+                    isVarified: user.isVarified,
+                }
+            };
+            const result = await usersCollection.updateOne(filter, updatedUser, option);
+            res.send(result);
+
+        });
+
 
 
 
