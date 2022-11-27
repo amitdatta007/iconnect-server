@@ -130,6 +130,19 @@ const run = async() => {
             res.send(result);
         });
 
+
+        app.post('/product', async(req, res) => {
+            const email = req.body.sellerEmail;
+
+            const user = await usersCollection.findOne({email: email});
+            if(user.accountType === 'seller'){
+                const product = req.body;
+                const result = await productsCollection.insertOne(product);
+                return res.send(result);
+            }
+            res.send({message: 'Not a seller'})
+        })
+
         app.delete('/user', async(req, res) => {
             const email = req.query.email;
             const query = {email: email};
