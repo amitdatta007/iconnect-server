@@ -42,6 +42,7 @@ const run = async() => {
         const catagoriesCollection = client.db('iconnect').collection('catagories');
         const productsCollection = client.db('iconnect').collection('products');
         const advertisesCollection = client.db('iconnect').collection('advertises');
+        const bookedProductsCollection = client.db('iconnect').collection('bookedProducts');
         
 
         app.get('/jwt', async(req, res) => {
@@ -168,6 +169,19 @@ const run = async() => {
                 return res.send(result);
             }
             res.send({message: 'Not a seller'})
+        });
+
+        app.post('/booking', async(req, res) => {
+            const product = req.body;
+            
+            const alreadyBooked = await bookedProductsCollection.findOne({_id: product._id, bookedByEmail: product.bookedByEmail});
+
+            if(alreadyBooked){
+                res.send({acknowledged: false})
+            } else{
+                const result = await bookedProductsCollection.insertOne(product);
+                res.send(result);
+            };
         });
 
         app.delete('/user', async(req, res) => {
