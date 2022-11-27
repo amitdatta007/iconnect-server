@@ -1,10 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
-
 
 const app = express();
 
@@ -35,13 +34,14 @@ const varifyJwt = (req, res, next) => {
         req.decoded = decoded;
         next();
     });
-}
+};
 
 const run = async() => {
     try{
         const usersCollection = client.db('iconnect').collection('users');
         const catagoriesCollection = client.db('iconnect').collection('catagories');
         const productsCollection = client.db('iconnect').collection('products');
+        const advertisesCollection = client.db('iconnect').collection('advertises');
         
 
         app.get('/jwt', async(req, res) => {
@@ -115,6 +115,22 @@ const run = async() => {
             res.send([]);
         });
 
+        app.get('/myproducts',varifyJwt, async(req, res) => {
+            const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+            
+            if(email !== decodedEmail){
+                return res.send([{message: 'forbidden access'}])
+            }
+            const seller = await usersCollection.findOne({email: email});
+            if(seller.accountType === "seller"){
+                const query = {sellerEmail: email};
+                const myProducts = await productsCollection.find(query).toArray();
+                return res.send(myProducts);
+            };
+            res.send([]);
+        });
+
         app.post('/users', async(req, res) => {
             const user = req.body;
 
@@ -130,6 +146,17 @@ const run = async() => {
             res.send(result);
         });
 
+        app.post('/advertise', async(req, res) => {
+            const product = req.body;
+            const query = {_id: product._id};
+            const alreadyAd = await advertisesCollection.findOne(query);
+            if(alreadyAd){
+                return res.send({acknowledged: false})
+            }
+            const result = await advertisesCollection.insertOne(product);
+            res.send(result);
+        });
+
 
         app.post('/product', async(req, res) => {
             const email = req.body.sellerEmail;
@@ -141,13 +168,29 @@ const run = async() => {
                 return res.send(result);
             }
             res.send({message: 'Not a seller'})
-        })
+        });
 
         app.delete('/user', async(req, res) => {
             const email = req.query.email;
             const query = {email: email};
             const result = await usersCollection.deleteOne(query);
             res.send(result);
+        });
+
+        app.delete('/product', async(req, res) => {
+            const id = req.query.id;
+
+            const q = {_id: id};    
+            const ad = await advertisesCollection.findOne(q);
+            if(ad){
+                const r = advertisesCollection.deleteOne(q);
+            };
+
+            const query = {_id: ObjectId(id)};
+            const result = await productsCollection.deleteOne(query);
+            
+            res.send(result);
+
         });
 
         app.put('/user', async(req, res) => {
@@ -195,4 +238,4 @@ run().catch(err => console.log(err));
 
 app.listen(port, () => {
     console.log(`Server Running on Port ${port}`);
-})
+});
