@@ -43,6 +43,8 @@ const run = async() => {
         const productsCollection = client.db('iconnect').collection('products');
         const advertisesCollection = client.db('iconnect').collection('advertises');
         const bookedProductsCollection = client.db('iconnect').collection('bookedProducts');
+        const reportedProductCollection = client.db('iconnect').collection('reportedProducts');
+        
         
 
         app.get('/jwt', async(req, res) => {
@@ -79,7 +81,7 @@ const run = async() => {
 
         app.get('/products/:catagoryId', async(req, res) => {
             const catagoryId = req.params.catagoryId;
-            const query = {catagoryId: catagoryId};
+            const query = {catagoryId: catagoryId, isAvaiable: true};
             const products = await productsCollection.find(query).toArray();
             res.send(products);
         });
@@ -115,6 +117,21 @@ const run = async() => {
             }
             res.send([]);
         });
+        app.get('/myorders', varifyJwt, async(req, res) => {
+            const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+            
+            if(email !== decodedEmail){
+                return res.send([{message: 'forbidden access'}])
+            }
+            const buyer = await usersCollection.findOne({email: email});
+            if(buyer.accountType === "buyer"){
+                const query = {bookedByEmail: email};
+                const myOrders = await bookedProductsCollection.find(query).toArray();
+                return res.send(myOrders);
+            }
+            res.send([]);
+        });
 
         app.get('/myproducts',varifyJwt, async(req, res) => {
             const email = req.query.email;
@@ -127,6 +144,21 @@ const run = async() => {
             if(seller.accountType === "seller"){
                 const query = {sellerEmail: email};
                 const myProducts = await productsCollection.find(query).toArray();
+                return res.send(myProducts);
+            };
+            res.send([]);
+        });
+
+        app.get('/report',varifyJwt, async(req, res) => {
+            const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+            
+            if(email !== decodedEmail){
+                return res.send([{message: 'forbidden access'}])
+            }
+            const admin = await usersCollection.findOne({email: email});
+            if(admin.accountType === "admin"){
+                const myProducts = await reportedProductCollection.find({}).toArray();
                 return res.send(myProducts);
             };
             res.send([]);
@@ -173,8 +205,16 @@ const run = async() => {
 
         app.post('/booking', async(req, res) => {
             const product = req.body;
+
+        
             
-            const alreadyBooked = await bookedProductsCollection.findOne({_id: product._id, bookedByEmail: product.bookedByEmail});
+            const alreadyBooked = await bookedProductsCollection.findOne({_id: product._id});
+
+            const q = {_id: product._id};
+            const ad = await advertisesCollection.findOne(q);
+            if(ad){
+                const r = advertisesCollection.deleteOne(q);
+            };
 
             if(alreadyBooked){
                 res.send({acknowledged: false})
@@ -182,6 +222,18 @@ const run = async() => {
                 const result = await bookedProductsCollection.insertOne(product);
                 res.send(result);
             };
+        });
+
+        app.post('/report', async(req, res) => {
+            const product = req.body;
+            const alreadyReport = await reportedProductCollection.findOne({_id: product._id});
+            if(alreadyReport){
+                res.send({})
+            } else {
+                const result = await reportedProductCollection.insertOne(product);
+                res.send(result);
+            };
+            
         });
 
         app.delete('/user', async(req, res) => {
@@ -206,6 +258,14 @@ const run = async() => {
             res.send(result);
 
         });
+        app.delete('/report', async(req, res) => {
+            const id = req.query.id;
+            const query = {_id: id};
+            const result = await reportedProductCollection.deleteOne(query);
+            
+            res.send(result);
+
+        });
 
         app.put('/user', async(req, res) => {
             const user = req.body;
@@ -218,6 +278,21 @@ const run = async() => {
                 }
             };
             const result = await usersCollection.updateOne(filter, updatedUser, option);
+            res.send(result);
+
+        });
+
+        app.put('/product', async(req, res) => {
+            const product = req.body;
+            const id = product._id;
+            const filter = {_id: ObjectId(id)};
+            const option = {upsert: true};
+            const updateProduct = {
+                $set: {
+                    isAvaiable: product.isAvaiable,
+                }
+            };
+            const result = await productsCollection.updateOne(filter, updateProduct, option);
             res.send(result);
 
         });
